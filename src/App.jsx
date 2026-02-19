@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Check, AlertCircle, Settings, X, Copy, RotateCcw, BookOpen, User, Volume2, Languages, Sparkles, ArrowRightLeft, Pencil, Save, StickyNote, MousePointerClick, Lightbulb } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, AlertCircle, Settings, X, Copy, RotateCcw, BookOpen, User, Volume2, Languages, Sparkles, ArrowRightLeft, Pencil, Save, StickyNote, Lightbulb } from 'lucide-react';
 
-export default function KoreanWritingAssistant() {
+export default function App() {
   const [inputText, setInputText] = useState('');
   const [customInstruction, setCustomInstruction] = useState(''); 
   const [result, setResult] = useState(null);
@@ -10,7 +10,7 @@ export default function KoreanWritingAssistant() {
   const [showSettings, setShowSettings] = useState(false);
   const [history, setHistory] = useState([]);
   
-  // New States for AI Features
+  // States for AI Features
   const [tone, setTone] = useState('polite'); 
   const [chineseTranslation, setChineseTranslation] = useState(null); 
   const [isTranslating, setIsTranslating] = useState(false);
@@ -199,7 +199,7 @@ export default function KoreanWritingAssistant() {
     }
   };
 
-  // Translate Corrected Text (Dual Version) (UPDATED MODEL)
+  // Translate Corrected Text (Dual Version) (UPDATED MODEL: gemini-1.5-flash)
   const translateToChinese = async () => {
     if (!result || !apiKey) return;
     setIsTranslating(true);
@@ -244,22 +244,20 @@ export default function KoreanWritingAssistant() {
     }
   };
 
-  // Text to Speech (Updated to use Browser Built-in API)
+  // Text to Speech (Browser Built-in API)
   const generateAudio = () => {
     const textToSpeak = isEditingResult ? editedResultText : (result ? result.corrected : "");
     if (!textToSpeak) return;
 
     setIsGeneratingAudio(true);
 
-    // Cancel any current speech
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = 'ko-KR'; // Korean
-    utterance.rate = 1.0; // Normal speed
+    utterance.lang = 'ko-KR'; 
+    utterance.rate = 1.0; 
     utterance.pitch = 1.0;
 
-    // Optional: Try to select a Korean voice if available
     const voices = window.speechSynthesis.getVoices();
     const koreanVoice = voices.find(voice => voice.lang.includes('ko'));
     if (koreanVoice) utterance.voice = koreanVoice;
@@ -275,13 +273,12 @@ export default function KoreanWritingAssistant() {
 
     window.speechSynthesis.speak(utterance);
     
-    // Fallback if onend doesn't fire immediately
     setTimeout(() => {
         if (!window.speechSynthesis.speaking) setIsGeneratingAudio(false);
     }, 1000 + (textToSpeak.length * 200));
   };
 
-  // Quick Translator (Dual Version) (UPDATED MODEL)
+  // Quick Translator (Dual Version) (UPDATED MODEL: gemini-1.5-flash)
   const runTranslation = async () => {
     if (!transInput.trim()) return;
     if (!apiKey) {
@@ -335,11 +332,9 @@ export default function KoreanWritingAssistant() {
 
   const toggleEditResult = () => {
     if (isEditingResult) {
-        // Save action
         setResult(prev => ({ ...prev, corrected: editedResultText }));
         setIsEditingResult(false);
     } else {
-        // Edit action
         setEditedResultText(result.corrected);
         setIsEditingResult(true);
     }
