@@ -10,24 +10,21 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [history, setHistory] = useState([]);
   
-  // States for AI Features
   const [tone, setTone] = useState('polite'); 
   const [chineseTranslation, setChineseTranslation] = useState(null); 
   const [isTranslating, setIsTranslating] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
-  // States for Editing Result
   const [isEditingResult, setIsEditingResult] = useState(false);
   const [editedResultText, setEditedResultText] = useState('');
 
-  // States for Quick Translator
   const [transInput, setTransInput] = useState('');
   const [transInstruction, setTransInstruction] = useState(''); 
   const [transResult, setTransResult] = useState(null); 
   const [transLoading, setTransLoading] = useState(false);
   const [transDirection, setTransDirection] = useState('kr2cn'); 
 
-  // PRESET OPTIONS (Main Corrector)
+  // PRESETS (유지)
   const PRESETS = [
     {
       id: 'recommend',
@@ -46,7 +43,6 @@ export default function App() {
     }
   ];
 
-  // PRESET OPTIONS (Translator)
   const TRANS_PRESETS = [
     {
       id: 'precise',
@@ -60,7 +56,6 @@ export default function App() {
     }
   ];
 
-  // Load API key, history, AND Custom Instructions from local storage on mount
   useEffect(() => {
     const storedKey = localStorage.getItem('gemini_api_key');
     const storedHistory = localStorage.getItem('correction_history');
@@ -73,65 +68,67 @@ export default function App() {
     if (storedTransInstruction) setTransInstruction(storedTransInstruction);
   }, []);
 
-  // Save API key
   const saveApiKey = (key) => {
     setApiKey(key);
     localStorage.setItem('gemini_api_key', key);
     setShowSettings(false);
   };
 
-  // Save Custom Instruction whenever it changes
   const handleInstructionChange = (e) => {
     const newVal = e.target.value;
     setCustomInstruction(newVal);
     localStorage.setItem('user_custom_instruction', newVal);
   };
 
-  // Save Translator Instruction whenever it changes
   const handleTransInstructionChange = (e) => {
     const newVal = e.target.value;
     setTransInstruction(newVal);
     localStorage.setItem('user_trans_instruction', newVal);
   };
 
-  // Handle Preset Click
   const applyPreset = (text) => {
     setCustomInstruction(text);
     localStorage.setItem('user_custom_instruction', text);
   };
 
-  // Handle Trans Preset Click
   const applyTransPreset = (text) => {
     setTransInstruction(text);
     localStorage.setItem('user_trans_instruction', text);
   };
 
-  // Clear History
   const clearHistory = () => {
     setHistory([]);
     localStorage.removeItem('correction_history');
   };
 
-  // Mock correction
+  // Helper: Clean JSON string from Markdown (Robust Parsing)
+  const cleanAndParseJSON = (text) => {
+    try {
+      // Remove ```json and ``` if present
+      const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleaned);
+    } catch (e) {
+      console.error("JSON Parse Error:", e, text);
+      throw new Error("AI 응답을 분석하는 데 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
   const mockCorrection = async () => {
     await new Promise(r => setTimeout(r, 1500));
-    const isPolite = tone === 'polite';
     return {
-      corrected: isPolite 
-        ? "저는 프리랜서입니다. 축구와 주짓수를 하고 있고, 운동을 좋아합니다." 
-        : "나는 프리랜서야. 축구랑 주짓수 하고 있고, 운동 좋아해.",
-      explanation: "테스트 모드입니다. API 키를 입력하면 실제 AI가 동작합니다.",
+      corrected: "저는 프리랜서입니다. 축구와 주짓수를 하고 있고, 운동을 좋아합니다.",
+      explanation: "API 키를 입력하면 실제 AI가 동작합니다. (테스트 모드)",
       original: inputText
     };
   };
 
-  // Real correction using Gemini API (UPDATED MODEL: gemini-1.5-flash-001)
+  // 1. Correct Text (Model: gemini-pro)
   const correctText = async () => {
     if (!inputText.trim()) return;
     setLoading(true);
     setResult(null);
     setChineseTranslation(null);
-    setIsEditingResult(false); // Reset edit mode
+    setIsEditingResult(false);
     
     try {
       let data;
@@ -140,40 +137,38 @@ export default function App() {
         if (inputText.includes("나 프리랜서다")) {
             data = await mockCorrection();
         } else {
-            alert("AI 기능을 사용하려면 설정(⚙️)에서 Google Gemini API 키를 입력해주세요. \n(테스트를 위해 '나 프리랜서다'를 입력해보세요.)");
+            alert("설정(⚙️)에서 Google Gemini API 키를 먼저 입력해주세요.");
             setLoading(false);
             return;
         }
       } else {
         const toneInstruction = tone === 'polite' 
-          ? "Formal/Polite (존댓말, e.g., ~습니다, ~요) suitable for business or strangers." 
-          : "Casual/Friendly (반말, e.g., ~야, ~어) suitable for close friends.";
+          ? "Formal/Polite (존댓말) suitable for business." 
+          : "Casual/Friendly (반말) suitable for close friends.";
 
         const prompt = `
-          You are a professional Korean editor helping a native Chinese speaker.
+          Role: Professional Korean Editor.
+          Context: User is a native Chinese speaker living in Korea.
+          User Preference: "${customInstruction || "Natural native Korean style"}"
+          Task: Correct the Korean text below.
+          Tone: ${toneInstruction}
           
-          USER PROFILE & PREFERENCE:
-          "${customInstruction ? customInstruction : "No specific preference provided."}"
-          
-          Task: Correct the following Korean text to be grammatically correct and natural.
-          TONE REQUIREMENT: ${toneInstruction}
-          
-          Input Text: "${inputText}"
+          Input: "${inputText}"
 
-          Output Format (JSON):
+          Output JSON format ONLY (No markdown):
           {
-            "corrected": "The corrected full text matching the requested tone",
-            "explanation": "Brief explanation of corrections in Korean (focus on particles and tone adjustments)"
+            "corrected": "Corrected text here",
+            "explanation": "Brief explanation of changes"
           }
         `;
 
-        // UPDATED MODEL: gemini-1.5-flash-001 (Stable version)
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
+        // Using 'gemini-pro' for maximum compatibility
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
+            contents: [{ parts: [{ text: prompt }] }]
+            // removed generationConfig for gemini-pro compatibility
           })
         });
 
@@ -181,7 +176,7 @@ export default function App() {
         if (json.error) throw new Error(json.error.message);
 
         const rawText = json.candidates[0].content.parts[0].text;
-        data = JSON.parse(rawText);
+        data = cleanAndParseJSON(rawText);
         data.original = inputText;
       }
 
@@ -199,7 +194,7 @@ export default function App() {
     }
   };
 
-  // Translate Corrected Text (Dual Version) (UPDATED MODEL: gemini-1.5-flash-001)
+  // 2. Translate (Model: gemini-pro)
   const translateToChinese = async () => {
     if (!result || !apiKey) return;
     setIsTranslating(true);
@@ -209,83 +204,73 @@ export default function App() {
 
     try {
       const prompt = `
-        Act as a professional translator and social media editor.
-        Translate the following Korean text into Simplified Chinese (Zh-CN) in two distinct styles.
+        Role: Professional Translator & Social Media Editor.
+        Task: Translate Korean text to Simplified Chinese (Zh-CN) in 2 styles.
+        
+        Input: "${textToTranslate}"
 
-        Input Text: "${textToTranslate}"
-
-        Output Format (JSON):
+        Output JSON format ONLY (No markdown):
         {
-          "precise": "Natural, sophisticated, native-level translation. Accurate to the original meaning.",
-          "creative": "Xiaohongshu (Little Red Book) style. Use plenty of emojis, hashtags, and a trendy, conversational tone suitable for a viral social media post. Make it engaging, emotional, and visually appealing text."
+          "precise": "Accurate, native-level translation",
+          "creative": "Xiaohongshu (Little Red Book) style with emojis & hashtags"
         }
       `;
       
-      // UPDATED MODEL: gemini-1.5-flash-001 (Stable version)
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
+          contents: [{ parts: [{ text: prompt }] }]
         })
       });
 
       const json = await response.json();
       if (json.error) throw new Error(json.error.message);
       
-      const parsedData = JSON.parse(json.candidates[0].content.parts[0].text);
+      const rawText = json.candidates[0].content.parts[0].text;
+      const parsedData = cleanAndParseJSON(rawText);
       setChineseTranslation(parsedData);
     } catch (error) {
       console.error(error);
-      alert("Translation failed or API key missing.");
+      alert("Translation failed: " + error.message);
     } finally {
       setIsTranslating(false);
     }
   };
 
-  // Text to Speech (Browser Built-in API)
+  // 3. TTS (Browser Native)
   const generateAudio = () => {
     const textToSpeak = isEditingResult ? editedResultText : (result ? result.corrected : "");
     if (!textToSpeak) return;
 
     setIsGeneratingAudio(true);
-
-    // Cancel any current speech
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = 'ko-KR'; // Korean
-    utterance.rate = 1.0; // Normal speed
-    utterance.pitch = 1.0;
+    utterance.lang = 'ko-KR'; 
+    utterance.rate = 1.0; 
 
-    // Optional: Try to select a Korean voice if available
+    // Select Korean voice if available
     const voices = window.speechSynthesis.getVoices();
-    const koreanVoice = voices.find(voice => voice.lang.includes('ko'));
+    const koreanVoice = voices.find(v => v.lang.includes('ko'));
     if (koreanVoice) utterance.voice = koreanVoice;
 
-    utterance.onend = () => {
-      setIsGeneratingAudio(false);
-    };
-
-    utterance.onerror = (e) => {
-      console.error('TTS Error:', e);
-      setIsGeneratingAudio(false);
-    };
+    utterance.onend = () => setIsGeneratingAudio(false);
+    utterance.onerror = () => setIsGeneratingAudio(false);
 
     window.speechSynthesis.speak(utterance);
     
-    // Fallback if onend doesn't fire immediately
+    // Safety timeout
     setTimeout(() => {
         if (!window.speechSynthesis.speaking) setIsGeneratingAudio(false);
     }, 1000 + (textToSpeak.length * 200));
   };
 
-  // Quick Translator (Dual Version) (UPDATED MODEL: gemini-1.5-flash-001)
+  // 4. Quick Translator (Model: gemini-pro)
   const runTranslation = async () => {
     if (!transInput.trim()) return;
     if (!apiKey) {
-      alert("번역 기능을 사용하려면 설정(⚙️)에서 API 키를 입력해주세요.");
+      alert("설정에서 API 키를 입력해주세요.");
       return;
     }
 
@@ -297,34 +282,32 @@ export default function App() {
       const targetLang = transDirection === 'kr2cn' ? "Chinese (Simplified)" : "Korean";
       
       const prompt = `
-        Act as a professional translator.
-        Translate the following text from ${sourceLang} to ${targetLang} in two styles.
+        Role: Professional Translator.
+        Task: Translate from ${sourceLang} to ${targetLang} in 2 styles.
+        User Note: "${transInstruction || "None"}"
+        
+        Input: "${transInput}"
 
-        USER INSTRUCTION: "${transInstruction ? transInstruction : "None"}"
-
-        Text: "${transInput}"
-
-        Output Format (JSON):
+        Output JSON format ONLY (No markdown):
         {
-          "precise": "Standard, high-quality, native-level translation. Accurate nuance.",
-          "creative": "Xiaohongshu (Little Red Book) style. Use plenty of emojis, hashtags, and a trendy, conversational tone. If translating to Korean, use trendy Instagram/Blog style. If translating to Chinese, use Xiaohongshu style."
+          "precise": "Standard, accurate translation",
+          "creative": "Xiaohongshu/Instagram style with emojis"
         }
       `;
 
-      // UPDATED MODEL: gemini-1.5-flash-001 (Stable version)
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
+          contents: [{ parts: [{ text: prompt }] }]
         })
       });
 
       const json = await response.json();
       if (json.error) throw new Error(json.error.message);
       
-      const parsedData = JSON.parse(json.candidates[0].content.parts[0].text);
+      const rawText = json.candidates[0].content.parts[0].text;
+      const parsedData = cleanAndParseJSON(rawText);
       setTransResult(parsedData);
     } catch (error) {
       alert(`Translation Error: ${error.message}`);
@@ -397,7 +380,7 @@ export default function App() {
             <p className="text-sm text-gray-600 mb-4">
               Google Gemini API 키를 입력하면 AI가 문맥을 파악하여 더 정확하게 교정해줍니다.
               <br/>
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-teal-600 underline text-xs">
+              <a href="[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)" target="_blank" rel="noreferrer" className="text-teal-600 underline text-xs">
                 여기서 무료 키 발급받기
               </a>
             </p>
