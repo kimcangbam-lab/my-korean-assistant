@@ -125,7 +125,7 @@ export default function App() {
     };
   };
 
-  // Real correction using Gemini API (UPDATED MODEL: gemini-1.5-flash-002)
+  // Real correction using Gemini API (UPDATED MODEL: gemini-1.5-flash-001)
   const correctText = async () => {
     if (!inputText.trim()) return;
     setLoading(true);
@@ -167,8 +167,8 @@ export default function App() {
           }
         `;
 
-        // UPDATED MODEL: gemini-1.5-flash-002
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`, {
+        // UPDATED MODEL: gemini-1.5-flash-001 (Stable version)
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -199,7 +199,7 @@ export default function App() {
     }
   };
 
-  // Translate Corrected Text (Dual Version) (UPDATED MODEL: gemini-1.5-flash-002)
+  // Translate Corrected Text (Dual Version) (UPDATED MODEL: gemini-1.5-flash-001)
   const translateToChinese = async () => {
     if (!result || !apiKey) return;
     setIsTranslating(true);
@@ -221,8 +221,8 @@ export default function App() {
         }
       `;
       
-      // UPDATED MODEL: gemini-1.5-flash-002
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`, {
+      // UPDATED MODEL: gemini-1.5-flash-001 (Stable version)
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -281,7 +281,7 @@ export default function App() {
     }, 1000 + (textToSpeak.length * 200));
   };
 
-  // Quick Translator (Dual Version) (UPDATED MODEL: gemini-1.5-flash-002)
+  // Quick Translator (Dual Version) (UPDATED MODEL: gemini-1.5-flash-001)
   const runTranslation = async () => {
     if (!transInput.trim()) return;
     if (!apiKey) {
@@ -311,8 +311,8 @@ export default function App() {
         }
       `;
 
-      // UPDATED MODEL: gemini-1.5-flash-002
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`, {
+      // UPDATED MODEL: gemini-1.5-flash-001 (Stable version)
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
