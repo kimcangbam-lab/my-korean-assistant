@@ -125,7 +125,7 @@ export default function App() {
     };
   };
 
-  // Real correction using Gemini API (UPDATED MODEL: gemini-1.5-flash)
+  // Real correction using Gemini API (UPDATED MODEL: gemini-1.5-flash-002)
   const correctText = async () => {
     if (!inputText.trim()) return;
     setLoading(true);
@@ -167,8 +167,8 @@ export default function App() {
           }
         `;
 
-        // UPDATED MODEL: gemini-1.5-flash
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // UPDATED MODEL: gemini-1.5-flash-002
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -199,7 +199,7 @@ export default function App() {
     }
   };
 
-  // Translate Corrected Text (Dual Version) (UPDATED MODEL: gemini-1.5-flash)
+  // Translate Corrected Text (Dual Version) (UPDATED MODEL: gemini-1.5-flash-002)
   const translateToChinese = async () => {
     if (!result || !apiKey) return;
     setIsTranslating(true);
@@ -221,8 +221,8 @@ export default function App() {
         }
       `;
       
-      // UPDATED MODEL: gemini-1.5-flash
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      // UPDATED MODEL: gemini-1.5-flash-002
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -251,13 +251,15 @@ export default function App() {
 
     setIsGeneratingAudio(true);
 
+    // Cancel any current speech
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = 'ko-KR'; 
-    utterance.rate = 1.0; 
+    utterance.lang = 'ko-KR'; // Korean
+    utterance.rate = 1.0; // Normal speed
     utterance.pitch = 1.0;
 
+    // Optional: Try to select a Korean voice if available
     const voices = window.speechSynthesis.getVoices();
     const koreanVoice = voices.find(voice => voice.lang.includes('ko'));
     if (koreanVoice) utterance.voice = koreanVoice;
@@ -273,12 +275,13 @@ export default function App() {
 
     window.speechSynthesis.speak(utterance);
     
+    // Fallback if onend doesn't fire immediately
     setTimeout(() => {
         if (!window.speechSynthesis.speaking) setIsGeneratingAudio(false);
     }, 1000 + (textToSpeak.length * 200));
   };
 
-  // Quick Translator (Dual Version) (UPDATED MODEL: gemini-1.5-flash)
+  // Quick Translator (Dual Version) (UPDATED MODEL: gemini-1.5-flash-002)
   const runTranslation = async () => {
     if (!transInput.trim()) return;
     if (!apiKey) {
@@ -308,8 +311,8 @@ export default function App() {
         }
       `;
 
-      // UPDATED MODEL: gemini-1.5-flash
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      // UPDATED MODEL: gemini-1.5-flash-002
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
