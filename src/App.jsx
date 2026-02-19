@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Check, AlertCircle, Settings, X, Copy, RotateCcw, BookOpen, User, Volume2, Languages, Sparkles, ArrowRightLeft, Pencil, Save, StickyNote, MousePointerClick, Lightbulb } from 'lucide-react';
 
-export default function App() {
+export default function KoreanWritingAssistant() {
   const [inputText, setInputText] = useState('');
   const [customInstruction, setCustomInstruction] = useState(''); 
   const [result, setResult] = useState(null);
@@ -22,7 +22,7 @@ export default function App() {
 
   // States for Quick Translator
   const [transInput, setTransInput] = useState('');
-  const [transInstruction, setTransInstruction] = useState(''); // New: Translator instruction
+  const [transInstruction, setTransInstruction] = useState(''); 
   const [transResult, setTransResult] = useState(null); 
   const [transLoading, setTransLoading] = useState(false);
   const [transDirection, setTransDirection] = useState('kr2cn'); 
@@ -65,7 +65,7 @@ export default function App() {
     const storedKey = localStorage.getItem('gemini_api_key');
     const storedHistory = localStorage.getItem('correction_history');
     const storedInstruction = localStorage.getItem('user_custom_instruction'); 
-    const storedTransInstruction = localStorage.getItem('user_trans_instruction'); // Load trans instruction
+    const storedTransInstruction = localStorage.getItem('user_trans_instruction'); 
     
     if (storedKey) setApiKey(storedKey);
     if (storedHistory) setHistory(JSON.parse(storedHistory));
@@ -112,23 +112,6 @@ export default function App() {
     localStorage.removeItem('correction_history');
   };
 
-  // Helper to decode base64 audio
-  const base64ToArrayBuffer = (base64) => {
-    const binaryString = window.atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-  };
-
-  const writeString = (view, offset, string) => {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  };
-
   // Mock correction
   const mockCorrection = async () => {
     await new Promise(r => setTimeout(r, 1500));
@@ -142,7 +125,7 @@ export default function App() {
     };
   };
 
-  // Real correction using Gemini API
+  // Real correction using Gemini API (UPDATED MODEL: gemini-1.5-flash)
   const correctText = async () => {
     if (!inputText.trim()) return;
     setLoading(true);
@@ -166,7 +149,6 @@ export default function App() {
           ? "Formal/Polite (존댓말, e.g., ~습니다, ~요) suitable for business or strangers." 
           : "Casual/Friendly (반말, e.g., ~야, ~어) suitable for close friends.";
 
-        // Injecting the persistent custom instruction into the prompt
         const prompt = `
           You are a professional Korean editor helping a native Chinese speaker.
           
@@ -185,7 +167,8 @@ export default function App() {
           }
         `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+        // UPDATED MODEL: gemini-1.5-flash
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -216,7 +199,7 @@ export default function App() {
     }
   };
 
-  // Translate Corrected Text (Dual Version)
+  // Translate Corrected Text (Dual Version) (UPDATED MODEL)
   const translateToChinese = async () => {
     if (!result || !apiKey) return;
     setIsTranslating(true);
@@ -225,7 +208,6 @@ export default function App() {
     const textToTranslate = isEditingResult ? editedResultText : result.corrected;
 
     try {
-      // Prompt for Dual Translation
       const prompt = `
         Act as a professional translator and social media editor.
         Translate the following Korean text into Simplified Chinese (Zh-CN) in two distinct styles.
@@ -239,7 +221,8 @@ export default function App() {
         }
       `;
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+      // UPDATED MODEL: gemini-1.5-flash
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -261,74 +244,44 @@ export default function App() {
     }
   };
 
-  // Text to Speech
-  const generateAudio = async () => {
-    if (!result || !apiKey) return;
+  // Text to Speech (Updated to use Browser Built-in API)
+  const generateAudio = () => {
+    const textToSpeak = isEditingResult ? editedResultText : (result ? result.corrected : "");
+    if (!textToSpeak) return;
+
     setIsGeneratingAudio(true);
 
-    const textToSpeak = isEditingResult ? editedResultText : result.corrected;
+    // Cancel any current speech
+    window.speechSynthesis.cancel();
 
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: textToSpeak }] }],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: "Kore"
-                }
-              }
-            }
-          }
-        })
-      });
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = 'ko-KR'; // Korean
+    utterance.rate = 1.0; // Normal speed
+    utterance.pitch = 1.0;
 
-      const json = await response.json();
-      if (json.error) throw new Error(json.error.message);
+    // Optional: Try to select a Korean voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const koreanVoice = voices.find(voice => voice.lang.includes('ko'));
+    if (koreanVoice) utterance.voice = koreanVoice;
 
-      const base64Audio = json.candidates[0].content.parts[0].inlineData.data;
-      const pcmData = base64ToArrayBuffer(base64Audio);
-      const wavHeader = new ArrayBuffer(44);
-      const view = new DataView(wavHeader);
-      const sampleRate = 24000;
-      const numChannels = 1;
-      const bitsPerSample = 16;
-      
-      writeString(view, 0, 'RIFF');
-      view.setUint32(4, 36 + pcmData.byteLength, true);
-      writeString(view, 8, 'WAVE');
-      writeString(view, 12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true);
-      view.setUint16(22, numChannels, true);
-      view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true);
-      view.setUint16(32, numChannels * (bitsPerSample / 8), true);
-      view.setUint16(34, bitsPerSample, true);
-      writeString(view, 36, 'data');
-      view.setUint32(40, pcmData.byteLength, true);
-
-      const blob = new Blob([wavHeader, pcmData], { type: 'audio/wav' });
-      const url = URL.createObjectURL(blob);
-      
-      setTimeout(() => {
-        const audio = new Audio(url);
-        audio.play();
-      }, 100);
-
-    } catch (error) {
-      console.error(error);
-      alert("Audio generation failed: " + error.message);
-    } finally {
+    utterance.onend = () => {
       setIsGeneratingAudio(false);
-    }
+    };
+
+    utterance.onerror = (e) => {
+      console.error('TTS Error:', e);
+      setIsGeneratingAudio(false);
+    };
+
+    window.speechSynthesis.speak(utterance);
+    
+    // Fallback if onend doesn't fire immediately
+    setTimeout(() => {
+        if (!window.speechSynthesis.speaking) setIsGeneratingAudio(false);
+    }, 1000 + (textToSpeak.length * 200));
   };
 
-  // Quick Translator (Dual Version) with Instruction
+  // Quick Translator (Dual Version) (UPDATED MODEL)
   const runTranslation = async () => {
     if (!transInput.trim()) return;
     if (!apiKey) {
@@ -343,7 +296,6 @@ export default function App() {
       const sourceLang = transDirection === 'kr2cn' ? "Korean" : "Chinese (Simplified)";
       const targetLang = transDirection === 'kr2cn' ? "Chinese (Simplified)" : "Korean";
       
-      // Prompt for Dual Translation
       const prompt = `
         Act as a professional translator.
         Translate the following text from ${sourceLang} to ${targetLang} in two styles.
@@ -359,7 +311,8 @@ export default function App() {
         }
       `;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+      // UPDATED MODEL: gemini-1.5-flash
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
